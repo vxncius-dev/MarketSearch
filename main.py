@@ -1,12 +1,12 @@
-import requests, json, shutil
+import requests
+import json
 from datetime import datetime
-from typing import List, Dict, Tuple, Set, Optional
+from typing import List, Dict, Tuple, Set
 import streamlit as st
 from bs4 import BeautifulSoup
 from geopy.distance import geodesic
 import folium
 from streamlit_folium import st_folium
-import pandas as pd
 
 
 class Market:
@@ -32,7 +32,6 @@ class Market:
             "saturday": "sábado",
             "sunday": "domingo"
         }
-
         mapped_day_name = days_mapping.get(day_name)
         if mapped_day_name and mapped_day_name in self.hours:
             opening_hours = self.hours[mapped_day_name].split("–")
@@ -40,8 +39,9 @@ class Market:
 
         return False
 
-    def __repr__(self):
-        return f"Market(name={self.name}, link={self.link}, coordinates={self.coordinates}, hours={self.hours})"
+    def __repr__(self) -> str:
+        return (f"Market(name={self.name}, link={self.link}, "
+                f"coordinates={self.coordinates}, hours={self.hours})")
 
 
 class PositionRef:
@@ -51,77 +51,59 @@ class PositionRef:
         self.current_position = current_position
         self.markets = markets
 
-    def __repr__(self):
-        return f"PositionRef(current_position={self.current_position}, markets={self.markets})"
+    def __repr__(self) -> str:
+        return (f"PositionRef(current_position={self.current_position}, "
+                f"markets={self.markets})")
 
 
 class MarketSearch(PositionRef):
 
-    def __init__(self,
-                 current_position: Tuple[float, float],
-                 useGuiMode: bool = False):
-        self.markets_links = {
-            "supermercadogaviao":
-            Market(
-                "Supermercado Gaviao",
-                "https://www.sitemercado.com.br/supermercadogaviao/boa-vista-loja-alvorada-alvorada-av-dos-garimpeiros/busca/",
-                [(2.8143964, -60.7579709), (2.8180705, -60.7409135),
-                 (2.8180705, -60.7409135)], {
-                     "terça-feira": "06:00–23:00",
-                     "quarta-feira": "06:00–23:00",
-                     "quinta-feira": "06:00–23:00",
-                     "sexta-feira": "06:00–23:00",
-                     "sábado": "06:00–23:00",
-                     "domingo": "06:00–23:00",
-                     "segunda-feira": "06:00–23:00"
-                 }),
-            "supergoiana":
-            Market(
-                "Supergoiana", "https://supergoiana.com.br/centro/busca/?q=",
-                [(2.8143957, -60.7965961), (2.8143957, -60.7965961),
-                 (2.818072, -60.7409134), (2.818072, -60.7409134)], {
-                     "terça-feira": "07:00–23:00",
-                     "quarta-feira": "07:00–23:00",
-                     "quinta-feira": "07:00–23:00",
-                     "sexta-feira": "07:00–23:00",
-                     "sábado": "07:00–23:00",
-                     "domingo": "07:00–23:00",
-                     "segunda-feira": "07:00–23:00"
-                 }),
-            "supergoiana_gourmet":
-            Market(
-                "Supergoiana Gourmet",
-                "https://www.supergoiana.com.br/gourmet/busca?q=",
-                [(2.8534288, -60.6607366)], {
-                    "terça-feira": "06:00–23:00",
-                    "quarta-feira": "06:00–23:00",
-                    "quinta-feira": "06:00–23:00",
-                    "sexta-feira": "06:00–23:00",
-                    "sábado": "06:00–23:00",
-                    "domingo": "06:00–23:00",
-                    "segunda-feira": "06:00–23:00"
-                })
-        }
-        super().__init__(current_position, self.markets_links)
-        self.useGuiMode = useGuiMode
-        self.outputMethod = st.write if useGuiMode else print
-        self.marketProductsSujestionsList: List[str] = [
-            "Arroz", "Feijão", "Macarrão", "Lentilha", "Açúcar", "Sal", "Café",
-            "Chá", "Óleo de soja", "Vinagre", "Molho de tomate", "Maionese",
-            "Mostarda", "Ketchup", "Frutas (maçã, banana, laranja)",
-            "Legumes (cenoura, batata, cebola)",
-            "Verduras (alface, espinafre, couve)", "Carne bovina", "Frango",
-            "Peixe", "Linguiça", "Ovo", "Queijo", "Leite", "Iogurte",
-            "Manteiga", "Pão", "Torradas", "Cereais", "Granola", "Biscoitos",
-            "Chocolate", "Doces", "Snacks (chips, amendoim)", "Refrigerantes",
-            "Sucos", "Água mineral", "Bebidas alcoólicas (cerveja, vinho)",
-            "Sabão em pó", "Detergente", "Desinfetante", "Papel toalha",
-            "Papel higiênico", "Escova de dentes", "Creme dental", "Shampoo",
-            "Condicionador", "Sabonete", "Perfume",
-            "Produtos de limpeza (multiuso, limpa vidros)"
+    def __init__(self):
+        with open('conf.json', 'r') as conf_file:
+            conf_data = json.load(conf_file)
+        initial_position = tuple(conf_data['coordinates'])
+
+        with open('markets.json', 'r') as markets_file:
+            markets_data = json.load(markets_file)
+            markets = {
+                name: Market(**data)
+                for name, data in markets_data.items()
+            }
+
+        with open('suggestions.json', 'r') as suggestions_file:
+            self.product_suggestions = json.load(suggestions_file)
+
+        super().__init__(initial_position, markets)
+        self.main()
+
+    @staticmethod
+    def fetch(url: str) -> str:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            print(f"Erro ao buscar URL {url}: {e}")
+            return ""
+
+    def filter_suggestions(self, query: str) -> List[str]:
+        if not query:
+            return []
+
+        matched_items = [
+            item for item in self.product_suggestions.keys()
+            if item.lower().startswith(query.lower())
         ]
 
-    def printDistanceMarkets(self, showCoordinates: bool = False) -> None:
+        related_suggestions = []
+        for item in matched_items:
+            related_suggestions.extend(self.product_suggestions[item])
+
+        related_suggestions = list(set(related_suggestions))
+        return [item for item in related_suggestions if item.lower() != query.lower()]
+
+
+    def print_distance_markets(self, show_coordinates: bool = False) -> None:
         distances = []
         for market_key, market in self.markets.items():
             for coordinates in market.coordinates:
@@ -131,43 +113,24 @@ class MarketSearch(PositionRef):
                     distances.append((market.name, coordinates, distance))
 
         distances.sort(key=lambda x: x[2])
-        console_width = shutil.get_terminal_size().columns
-        separator = "=" * (console_width - 2)
-
-        infoMarketOpen: str = "Mercados Abertos por Ordem de Proximidade:"
-        if self.useGuiMode:
-            st.write(f"**{infoMarketOpen}**")
-        else:
-            print("\n" + separator)
-            print(f"\n{infoMarketOpen}\n")
+        info_market_open = "Mercados Abertos por Ordem de Proximidade:"
+        st.subheader(f"{info_market_open}", divider="gray")
 
         if not distances:
-            infoNotOpen: str = "Nenhum mercado aberto no momento."
-            self.outputMethod(
-                f"***{infoNotOpen}***" if self.useGuiMode else infoNotOpen)
+            st.write("***Nenhum mercado aberto no momento***")
             return
 
         for market_name, coords, distance in distances:
-            additional: str = f"em {coords}" if showCoordinates else "da sua posição"
-            printSpacement: str = "    " if not self.useGuiMode else ""
-            textToshow: str = f"{printSpacement}⚲ {market_name} a {distance:.2f} km {additional}"
-            self.outputMethod(textToshow)
-        self.outputMethod("")
+            additional = f"em {coords}" if show_coordinates else "da sua posição"
+            text_to_show = f"⚲ {market_name} a {distance:.2f} km {additional}"
+            st.write(text_to_show)
+        st.write("")
 
-    def fetch(self, url: str) -> str:
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            return response.text
-        except requests.RequestException as e:
-            print(f"Erro ao buscar URL {url}: {e}")
-            return ""
-
-    def formatItems(
-            self, uniqueItems: Set[Tuple[str,
-                                         str]]) -> List[Tuple[str, float]]:
+    def format_items(
+            self, unique_items: Set[Tuple[str,
+                                          str]]) -> List[Tuple[str, float]]:
         items_with_price = []
-        for item_name, price in uniqueItems:
+        for item_name, price in unique_items:
             price_value = float(
                 price.replace('R$', '').replace(',', '.').strip())
             items_with_price.append((item_name, price_value))
@@ -175,59 +138,44 @@ class MarketSearch(PositionRef):
         items_with_price.sort(key=lambda x: x[1])
         return items_with_price
 
-    def printResults(self, items: List[Tuple[str, float]], searchItem: str,
-                     market_key: str) -> None:
+    def print_results(self, items: List[Tuple[str, float]], search_item: str,
+                      market_key: str) -> None:
         if items:
-            market_name = self.markets_links[market_key].name
-            textResult: str = f"Resultados para {searchItem.capitalize()} em {market_name}:"
-            self.outputMethod(
-                f"**{textResult}**" if self.useGuiMode else textResult)
+            market_name = self.markets[market_key].name
+            st.subheader(
+                f"Resultados para {search_item.capitalize()} em {market_name}:",
+                divider="gray")
 
             for index, (item_name, price) in enumerate(items):
-                price_str: str = f'R$ {price:.2f}'
-                itemLabel: str = f'{item_name} - {price_str}'
-                printSpacement: str = "    " if not self.useGuiMode else ""
-                prefix: str = f'{printSpacement}ⳑ ' if index == len(
-                    items) - 1 else f'{printSpacement}⊦ '
+                price_str = f'R$ {price:.2f}'
+                item_label = f'{item_name} - {price_str}'
 
-                if self.useGuiMode:
-                    # if st.button(button_label, key=f"{market_key}_{index}"):
-                    #     self.outputMethod(f"Você selecionou: {button_label}")
-                    col1, col2 = st.columns([4, 1])
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.write(item_name)
 
-                    with col1:
-                        st.write(item_name)
+                with col2:
+                    if st.button("Selecionar", key=f"{market_key}_{index}"):
+                        print(f"Você selecionou: {item_label}")
 
-                    with col2:
-                        if st.button("Selecionar",
-                                     key=f"{market_key}_{index}"):
-                            print(f"Você selecionou: {itemLabel}")
-
-                else:
-                    self.outputMethod(f'{prefix}{itemLabel}')
-                # f{prefix} if not self.useGuiMode else "➤ "
-
-            self.outputMethod("")
-
+            st.write("")
         else:
-            self.outputMethod("\nProduto não encontrado!")
+            st.write("\nProduto não encontrado!")
 
-    def searchPattern(self,
-                      market_key: str,
-                      searchItem: str,
-                      searchItemsLimit=5) -> None:
-        if not self.useGuiMode:
-            print("\nBuscando item...", end="", flush=True)
-        url = f"{self.markets[market_key].link}{searchItem}"
+    def search_pattern(self,
+                       market_key: str,
+                       search_item: str,
+                       search_items_limit: int = 5) -> None:
+        url = f"{self.markets[market_key].link}{search_item}"
         response_content = self.fetch(url)
 
         if not response_content:
             return
 
         soup = BeautifulSoup(response_content, 'html.parser')
-        uniqueItems: Set[Tuple[str, str]] = set()
+        unique_items: Set[Tuple[str, str]] = set()
 
-        def getFromJS():
+        def get_from_js() -> None:
             script_tag = soup.find('script', id='__NEXT_DATA__')
             if script_tag:
                 json_data = json.loads(script_tag.string)
@@ -236,14 +184,14 @@ class MarketSearch(PositionRef):
                                                  {}).get('products', [])
 
                 for product in products:
-                    if len(uniqueItems) >= searchItemsLimit:
+                    if len(unique_items) >= search_items_limit:
                         break
                     item_name = product.get('name').title()
                     item_price = f"R$ {product.get('price'):.2f}"
-                    uniqueItems.add((item_name, item_price))
+                    unique_items.add((item_name, item_price))
 
         if market_key in ["supergoiana", "supergoiana_gourmet"]:
-            getFromJS()
+            get_from_js()
         elif market_key == "supermercadogaviao":
             items = soup.find_all('a',
                                   class_='list-product-link',
@@ -252,79 +200,84 @@ class MarketSearch(PositionRef):
                                    class_='area-bloco-preco bloco-preco pr-0')
 
             for item, price in zip(items, prices):
-                if len(uniqueItems) >= searchItemsLimit:
+                if len(unique_items) >= search_items_limit:
                     break
                 item_name = item.get('aria-label').title()
                 if item_name:
                     for span in price.find_all('span'):
                         span.extract()
                     price_final = price.get_text(strip=True)
-                    uniqueItems.add((item_name, price_final))
+                    unique_items.add((item_name, price_final))
 
-        if not self.useGuiMode:
-            print("\r" + " " * 20 + "\r", end="", flush=True)
+        treated_items = self.format_items(unique_items)
+        self.print_results(treated_items, search_item, market_key)
 
-        treatedItems = self.formatItems(uniqueItems)
-        self.printResults(treatedItems, searchItem, market_key)
+    def show_map(self, pos: Tuple[float, float]) -> folium.Map:
+        m = folium.Map(location=pos, zoom_start=15)
+        folium.Marker(location=pos,
+                      popup="Sua Posição Atual",
+                      icon=folium.Icon(color='blue')).add_to(m)
 
-    def show_map(self) -> folium.Map:
-        m = folium.Map(location=self.current_position, zoom_start=15)
-        folium.Marker(location=self.current_position, popup="Sua Posição Atual", icon=folium.Icon(color='blue')).add_to(m)
-        for market in self.markets_links.values():
+        for market_key, market in self.markets.items():
             for coord in market.coordinates:
-                folium.Marker(location=coord, popup=market.name, icon=folium.Icon(color='green')).add_to(m)
+                folium.Marker(location=coord,
+                              popup=market.name,
+                              icon=folium.Icon(color='green')).add_to(m)
         return m
 
-def main(useGUI: Optional[bool]= False) -> None:
-    current_position = (2.1072714, -60.6181908)
-    market_search = MarketSearch(current_position, useGuiMode=useGUI)
-    if useGUI:
-        searchItem = st.text_input("", placeholder="Pesquisar produto")
-        totalListItems = st.slider("Quantidade de itens para mostrar:", 1, 20,
-                                   5)
-    else:
-        searchItem = input("Pesquisar produto: ")
-        totalListItems = input("Quantidade de itens para mostrar: ")
-        totalListItems = int(totalListItems) if totalListItems.isdigit() else 5
+    @st.dialog("Selecione sua posição")
+    def show_map_dialog(self, pos: Tuple[float, float]) -> None:
+        st.write(f"Sua Posição Atual: {pos}")
+        m = folium.Map(location=pos, zoom_start=15)
 
-    if not totalListItems or totalListItems < 1:
-        totalListItems = 5
+        folium.Marker(location=pos,
+                      popup="Sua Posição Atual",
+                      icon=folium.Icon(color='blue')).add_to(m)
 
-    if searchItem and totalListItems:
-        for market_key in market_search.markets.keys():
-            market_search.searchPattern(market_key, searchItem, totalListItems)
-        market_search.printDistanceMarkets()
+        for market_key, market in self.markets.items():
+            for coords in market.coordinates:
+                folium.Marker(location=coords,
+                              popup=market.name,
+                              icon=folium.Icon(color='red')).add_to(m)
+                folium.PolyLine(locations=[pos, coords],
+                                color="#fe4f03",
+                                weight=2.5,
+                                opacity=1).add_to(m)
 
-    return market_search
+        st_folium(m, width=400, height=400)
 
-if __name__ == "__main__":
-    guiMode: bool = True
-    market_search = main(useGUI=guiMode)
-
-    if guiMode:
-        @st.dialog("Selecione sua posição")
-        def showMap(pos):
-            st.write(f"Sua Posição Atual: {pos}")
-            
-            df = pd.DataFrame({
-                'col1': [pos[0]],  # Latitude
-                'col2': [pos[1]],  # Longitude
-                'col3': [100],  # Tamanho, ajuste conforme necessário
-                'col4': [[1, 0, 0, 1]]  # Cor, ajuste conforme necessário (RGBA)
-            })
-            
-            st.map(df, latitude="col1", longitude="col2", size="col3", color="col4")
-        
-        col1, col2 = st.columns([4, 1])
+    def main(self) -> None:
+        col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
 
         with col1:
-            st.title("Pesquisa de Mercados")
+            st.title("Market Search")
 
         with col2:
             if st.button("Mostrar Mapa"):
-                showMap(market_search.current_position)
-                   
-        
+                self.show_map_dialog(self.current_position)
+
+        search_item = st.text_input("", placeholder="Pesquisar produto")
+        total_list_items = st.slider("Quantidade de itens para mostrar:", 1,
+                                     20, 4)
+        if not total_list_items or total_list_items < 1:
+            total_list_items = 5
+
+        if search_item:
+            suggestions = self.filter_suggestions(search_item)
+            if suggestions:
+                suggestions_text = ", ".join(suggestions)
+                st.write(f"Sugestões: {suggestions_text}")
+            else:
+                st.write("Nenhuma sugestão encontrada.")
+
+        if not total_list_items or total_list_items < 1:
+            total_list_items = 5
+
+        if search_item and total_list_items:
+            for market_key in self.markets.keys():
+                self.search_pattern(market_key, search_item, total_list_items)
+            self.print_distance_markets()
+
         hide_streamlit_style = """
         <style>
         #MainMenu {display: none;}
@@ -334,4 +287,5 @@ if __name__ == "__main__":
         st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 
-# streamlit run main.py
+if __name__ == "__main__":
+    MarketSearch()
