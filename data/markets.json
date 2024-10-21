@@ -1,0 +1,79 @@
+{
+    "supermercadogaviao": {
+        "name": "Supermercado Gaviao",
+        "link": "https://www.sitemercado.com.br/supermercadogaviao/boa-vista-loja-alvorada-alvorada-av-dos-garimpeiros/busca/",
+        "coordinates": [
+            [
+                2.8143964,
+                -60.7579709
+            ],
+            [
+                2.8180705,
+                -60.7409135
+            ],
+            [
+                2.8180705,
+                -60.7409135
+            ]
+        ],
+        "hours": {
+            "terça-feira": "06:00–23:00",
+            "quarta-feira": "06:00–23:00",
+            "quinta-feira": "06:00–23:00",
+            "sexta-feira": "06:00–23:00",
+            "sábado": "06:00–23:00",
+            "domingo": "06:00–23:00",
+            "segunda-feira": "06:00–23:00"
+        }
+    },
+    "supergoiana": {
+        "name": "Supergoiana",
+        "link": "https://supergoiana.com.br/centro/busca/?q=",
+        "coordinates": [
+            [
+                2.8143957,
+                -60.7965961
+            ],
+            [
+                2.8143957,
+                -60.7965961
+            ],
+            [
+                2.818072,
+                -60.7409134
+            ],
+            [
+                2.818072,
+                -60.7409134
+            ]
+        ],
+        "hours": {
+            "terça-feira": "07:00–23:00",
+            "quarta-feira": "07:00–23:00",
+            "quinta-feira": "07:00–23:00",
+            "sexta-feira": "07:00–23:00",
+            "sábado": "07:00–23:00",
+            "domingo": "07:00–23:00",
+            "segunda-feira": "07:00–23:00"
+        }
+    },
+    "supergoiana_gourmet": {
+        "name": "Supergoiana Gourmet",
+        "link": "https://www.supergoiana.com.br/gourmet/busca?q=",
+        "coordinates": [
+            [
+                2.8534288,
+                -60.6607366
+            ]
+        ],
+        "hours": {
+            "terça-feira": "06:00–23:00",
+            "quarta-feira": "06:00–23:00",
+            "quinta-feira": "06:00–23:00",
+            "sexta-feira": "06:00–23:00",
+            "sábado": "06:00–23:00",
+            "domingo": "06:00–23:00",
+            "segunda-feira": "06:00–23:00"
+        }
+    }
+}
